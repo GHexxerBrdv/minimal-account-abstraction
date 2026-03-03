@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
-// import {IAccount} from "lib/account-abstraction/contracts/interfaces/IAccount.sol";
-import {IAccount} from "../helper/IAccount.sol";
+import {IAccount} from "lib/account-abstraction/contracts/interfaces/IAccount.sol";
 import {PackedUserOperation} from "lib/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
-// import {UserOperation} from "../helper/UserOperation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS} from "lib/account-abstraction/contracts/core/Helpers.sol";
 import {IEntryPoint} from "lib/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-// import {IEntryPoint} from "../helper/IEntryPoint.sol";
 
 contract MinimalAccount is IAccount, Ownable {
     /*//////////////////////////////////////////////////////////////
