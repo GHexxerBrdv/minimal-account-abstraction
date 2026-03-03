@@ -3,14 +3,14 @@ pragma solidity ^0.8.24;
 
 // import {IAccount} from "lib/account-abstraction/contracts/interfaces/IAccount.sol";
 import {IAccount} from "../helper/IAccount.sol";
-// import {PackedUserOperation} from "lib/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
-import {UserOperation} from "../helper/UserOperation.sol";
+import {PackedUserOperation} from "lib/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+// import {UserOperation} from "../helper/UserOperation.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS} from "lib/account-abstraction/contracts/core/Helpers.sol";
-// import {IEntryPoint} from "lib/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {IEntryPoint} from "../helper/IEntryPoint.sol";
+import {IEntryPoint} from "lib/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+// import {IEntryPoint} from "../helper/IEntryPoint.sol";
 
 contract MinimalAccount is IAccount, Ownable {
     /*//////////////////////////////////////////////////////////////
@@ -19,6 +19,7 @@ contract MinimalAccount is IAccount, Ownable {
     error MinimalAccount__NotFromEntryPoint();
     error MinimalAccount__NotFromEntryPointOrOwner();
     error MinimalAccount__CallFailed(bytes);
+    error MinimalAccount__PayPreFundFailed();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -62,7 +63,7 @@ contract MinimalAccount is IAccount, Ownable {
     }
 
     // A signature is valid, if it's the MinimalAccount owner
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         requireFromEntryPoint
         returns (uint256 validationData)
@@ -76,7 +77,7 @@ contract MinimalAccount is IAccount, Ownable {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     // EIP-191 version of the signed hash
-    function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash)
+    function _validateSignature(PackedUserOperation calldata userOp, bytes32 userOpHash)
         internal
         view
         returns (uint256 validationData)
@@ -91,8 +92,10 @@ contract MinimalAccount is IAccount, Ownable {
 
     function _payPrefund(uint256 missingAccountFunds) internal {
         if (missingAccountFunds != 0) {
-            (bool success,) = payable(msg.sender).call{value: missingAccountFunds}("");
-            (success);
+            (bool success,) = payable(msg.sender).call{value: missingAccountFunds, gas: type(uint256).max}("");
+            if (!success) {
+                revert MinimalAccount__PayPreFundFailed();
+            }
         }
     }
 

@@ -1,9 +1,13 @@
 {
   "lib/account-abstraction": {
+<<<<<<< HEAD
     "tag": {
       "name": "v0.8.0",
       "rev": "4cbc06072cdc19fd60f285c5997f4f7f57a588de"
     }
+=======
+    "rev": "7af70c8993a6f42973f520ae0752386a5032abe7"
+>>>>>>> upstream/main
   },
   "lib/forge-std": {
     "rev": "978ac6fadb62f5f0b723c996f64be52eddba6801"
@@ -15,9 +19,13 @@
     "rev": "3f99de4a37b126c5cb0466067f37be0c932167b2"
   },
   "lib/openzeppelin-contracts": {
+<<<<<<< HEAD
     "tag": {
       "name": "v5.4.0",
       "rev": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0"
     }
+=======
+    "rev": "dbb6104ce834628e473d2173bbc9d47f81a9eec3"
+>>>>>>> upstream/main
   }
 }
