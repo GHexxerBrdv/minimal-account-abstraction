@@ -27,8 +27,7 @@ contract SendPackedUserOp is Script {
         bytes memory functionData = abi.encodeWithSelector(IERC20.approve.selector, RANDOM_APPROVER, 1e18);
         bytes memory executeCalldata =
             abi.encodeWithSelector(MinimalAccount.execute.selector, dest, value, functionData);
-        PackedUserOperation memory userOp =
-            generateSignedUserOperation(executeCalldata, config, minimalAccountAddress);
+        PackedUserOperation memory userOp = generateSignedUserOperation(executeCalldata, config, minimalAccountAddress);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
 
@@ -70,17 +69,19 @@ contract SendPackedUserOp is Script {
         pure
         returns (PackedUserOperation memory)
     {
-        uint128 verificationGasLimit = 16777216;
-        uint128 callGasLimit = verificationGasLimit;
+        uint128 verificationGasLimit = 150_000;
+        uint128 callGasLimit = 200_000;
+        uint128 preVerificationGas = 50_000;
         uint128 maxPriorityFeePerGas = 256;
-        uint128 maxFeePerGas = maxPriorityFeePerGas;
+        uint128 maxFeePerGas = 256;
+
         return PackedUserOperation({
             sender: sender,
             nonce: nonce,
             initCode: hex"",
             callData: callData,
             accountGasLimits: bytes32(uint256(verificationGasLimit) << 128 | callGasLimit),
-            preVerificationGas: verificationGasLimit,
+            preVerificationGas: preVerificationGas,
             gasFees: bytes32(uint256(maxPriorityFeePerGas) << 128 | maxFeePerGas),
             paymasterAndData: hex"",
             signature: hex""
