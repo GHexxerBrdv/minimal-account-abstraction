@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {MinimalAccount} from "src/ethereum/MinimalAccount.sol";
@@ -119,7 +119,7 @@ contract MinimalAccountTest is Test, ZkSyncChainChecker {
 
         vm.deal(address(minimalAccount), 1e18);
 
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation[] memory ops = new UserOperation[](1);
         ops[0] = packedUserOp;
 
         // Act

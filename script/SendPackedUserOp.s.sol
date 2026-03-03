@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.24;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {PackedUserOperation} from "lib/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+// import {UserOperation} from "../src/helper/UserOperation.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {IEntryPoint} from "lib/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+// import {IEntryPoint} from "../src/helper/IEntryPoint.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MinimalAccount} from "src/ethereum/MinimalAccount.sol";
 import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
@@ -14,26 +16,72 @@ contract SendPackedUserOp is Script {
     using MessageHashUtils for bytes32;
 
     // Make sure you trust this user - don't run this on Mainnet!
-    address constant RANDOM_APPROVER = 0x9EA9b0cc1919def1A3CfAEF4F7A66eE3c36F86fC;
+    address constant RANDOM_APPROVER =
+        0x54DC75df46f1d1F8fe1a0Fd5E2d86Fe1A9B30D1a;
 
     function run() public {
         // Setup
         HelperConfig helperConfig = new HelperConfig();
-        address dest = helperConfig.getConfig().usdc; // arbitrum mainnet USDC address
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
+        address dest = config.usdc; // arbitrum mainnet USDC address
         uint256 value = 0;
-        address minimalAccountAddress = DevOpsTools.get_most_recent_deployment("MinimalAccount", block.chainid);
+        address minimalAccountAddress = DevOpsTools.get_most_recent_deployment(
+            "MinimalAccount",
+            block.chainid
+        );
 
-        bytes memory functionData = abi.encodeWithSelector(IERC20.approve.selector, RANDOM_APPROVER, 1e18);
-        bytes memory executeCalldata =
-            abi.encodeWithSelector(MinimalAccount.execute.selector, dest, value, functionData);
+        bytes memory functionData = abi.encodeWithSelector(
+            ERC20.balanceOf.selector,
+            vm.envAddress("ACC")
+        );
+        bytes memory executeCalldata = abi.encodeWithSelector(
+            MinimalAccount.execute.selector,
+            dest,
+            value,
+            functionData
+        );
+        // UserOperation memory userOp = generateSignedUserOperation(
+        //     executeCalldata,
+        //     helperConfig.getConfig(),
+        //     minimalAccountAddress
+        // );
         PackedUserOperation memory userOp =
-            generateSignedUserOperation(executeCalldata, helperConfig.getConfig(), minimalAccountAddress);
+            generateSignedUserOperation(executeCalldata, config, minimalAccountAddress);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
 
+        uint256 requiredPrefund = 0.021 ether; // from simulateValidation
+
         // Send transaction
         vm.startBroadcast();
-        IEntryPoint(helperConfig.getConfig().entryPoint).handleOps(ops, payable(helperConfig.getConfig().account));
+
+        // IEntryPoint(config.entryPoint).depositTo{
+        //     value: requiredPrefund + 0.01 ether
+        // }(minimalAccountAddress);
+
+        // try IEntryPoint(config.entryPoint).simulateValidation(userOp) {
+        //     console2.log("Simulation passed");
+        // } catch (bytes memory err) {
+        //     if (err.length < 4) revert("Invalid revert data");
+
+        //     bytes4 selector = bytes4(err);
+        //     if (selector == IEntryPoint.ValidationResult.selector) {
+        //         console2.log("SIMULATION PASSED");
+        //         // Optionally decode preOpGas, prefund, etc.
+        //         // For now, just proceed
+        //     } else if (selector == IEntryPoint.FailedOp.selector) {
+        //         // Decode FailedOp(string reason)
+        //         string memory reason;
+        //         assembly {
+        //             reason := add(err, 0x44) // skip selector + offsets
+        //         }
+        //         revert(string.concat("Simulation failed: ", reason));
+        //     } else {
+        //         revert("Unknown revert in simulation");
+        //     }
+        // }
+        IEntryPoint(config.entryPoint).handleOps(ops, payable(config.account));
+        // IEntryPoint(MinimalAccount(payable(minimalAccountAddress)).getEntryPoint()).handleOps(ops, payable(helperConfig.getConfig().account));
         vm.stopBroadcast();
     }
 
@@ -43,11 +91,20 @@ contract SendPackedUserOp is Script {
         address minimalAccount
     ) public view returns (PackedUserOperation memory) {
         // 1. Generate the unsigned data
-        uint256 nonce = IEntryPoint(config.entryPoint).getNonce(minimalAccount, 0);
-        PackedUserOperation memory userOp = _generateUnsignedUserOperation(callData, minimalAccount, nonce);
+        uint256 nonce = IEntryPoint(config.entryPoint).getNonce(
+            minimalAccount,
+            0
+        );
+        PackedUserOperation memory userOp = _generateUnsignedUserOperation(
+            callData,
+            minimalAccount,
+            nonce
+        );
 
         // 2. Get the userOp Hash
-        bytes32 userOpHash = IEntryPoint(config.entryPoint).getUserOpHash(userOp);
+        bytes32 userOpHash = IEntryPoint(config.entryPoint).getUserOpHash(
+            userOp
+        );
         bytes32 digest = userOpHash.toEthSignedMessageHash();
 
         // 3. Sign it
@@ -64,25 +121,28 @@ contract SendPackedUserOp is Script {
         return userOp;
     }
 
-    function _generateUnsignedUserOperation(bytes memory callData, address sender, uint256 nonce)
-        internal
-        pure
-        returns (PackedUserOperation memory)
-    {
-        uint128 verificationGasLimit = 16777216;
-        uint128 callGasLimit = verificationGasLimit;
-        uint128 maxPriorityFeePerGas = 256;
-        uint128 maxFeePerGas = maxPriorityFeePerGas;
-        return PackedUserOperation({
-            sender: sender,
-            nonce: nonce,
-            initCode: hex"",
-            callData: callData,
-            accountGasLimits: bytes32(uint256(verificationGasLimit) << 128 | callGasLimit),
-            preVerificationGas: verificationGasLimit,
-            gasFees: bytes32(uint256(maxPriorityFeePerGas) << 128 | maxFeePerGas),
-            paymasterAndData: hex"",
-            signature: hex""
-        });
+    function _generateUnsignedUserOperation(
+        bytes memory callData,
+        address sender,
+        uint256 nonce
+    ) internal pure returns (PackedUserOperation memory) {
+        uint128 verificationGasLimit = 200_000;
+        uint128 callGasLimit = 300_000;
+        uint128 maxPriorityFeePerGas = 2 gwei;
+        uint128 maxFeePerGas = 30 gwei;
+        return
+            PackedUserOperation({
+                sender: sender,
+                nonce: nonce,
+                initCode: hex"",
+                callData: callData,
+                callGasLimit: callGasLimit,
+                verificationGasLimit: verificationGasLimit,
+                preVerificationGas: 100_000,
+                maxFeePerGas: maxFeePerGas,
+                maxPriorityFeePerGas: maxPriorityFeePerGas,
+                paymasterAndData: hex"",
+                signature: hex""
+            });
     }
 }

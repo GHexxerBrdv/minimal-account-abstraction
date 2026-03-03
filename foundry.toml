@@ -11,4 +11,8 @@ fs_permissions = [
     { access = "read", path = "./reports" },
 ]
 
+[rpc_endpoints]
+sepolia = "${SEPOLIA}"
+amoy = "${POLY}"
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
