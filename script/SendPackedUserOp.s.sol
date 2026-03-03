@@ -28,7 +28,7 @@ contract SendPackedUserOp is Script {
         bytes memory executeCalldata =
             abi.encodeWithSelector(MinimalAccount.execute.selector, dest, value, functionData);
         PackedUserOperation memory userOp =
-            generateSignedUserOperation(executeCalldata, helperConfig.getConfig(), minimalAccountAddress);
+            generateSignedUserOperation(executeCalldata, config, minimalAccountAddress);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
 
